@@ -1,0 +1,2 @@
+class=com.shi.android_base.test.Business1
+method=doBusiness1Function

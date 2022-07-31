@@ -1,0 +1,46 @@
+task dependsA { // 定义一个基础Task
+    doLast {
+        println 'i am depends A task'
+    }
+}
+
+// 当执行B时，会先执行它的依赖任务A
+task dependsB {
+    dependsOn dependsA // 通过方法设置
+    doLast {
+        println 'i am depends B task'
+    }
+}
+
+// 通过Map参数依赖任务A
+task dependsC(dependsOn: dependsA) {
+    doLast {
+        println 'i am depends C task'
+    }
+}
+
+// 任务D懒依赖任务E
+// 任务E后定义
+task dependsD {
+    dependsOn 'dependsE'
+    doLast {
+        println 'i am depends D task'
+    }
+}
+
+task dependsE {
+    doLast {
+        println 'i am depends E task'
+    }
+}
+
+task dependsF {
+    doLast {
+        println 'i am depends F task'
+    }
+}
+// 通过dependsOn方法同时依赖两个任务E和A
+dependsF.dependsOn dependsE, dependsA
+
+//从示例中可以看到，通过 dependsOn 设置任务的依赖关系后，当执行任务时，
+// 其依赖的任务会先完成执行。而且，可以给某个任务同时设置多个依赖任务；也可以进行懒依赖，即依赖那些还没有定义的任务。

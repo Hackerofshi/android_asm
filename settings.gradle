@@ -1,0 +1,28 @@
+pluginManagement {
+    repositories {
+        maven {//本地Maven仓库地址
+            url uri('./repos')
+        }
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+
+    }
+}
+dependencyResolutionManagement {
+   // repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        maven {//本地Maven仓库地址
+            url uri('./repos')
+        }
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "android_base"
+include ':app'
+include ':mylibrary'
+include ':customPlugin'
+include ':MPlugin'
+include ':lib'
+include ':apt-annotation'

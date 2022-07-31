@@ -1,0 +1,250 @@
+import javax.inject.Inject
+
+//方式一：使用字符串作为任务名创建 Task，示例：gradlew -q helloA
+task('helloA') {
+    doLast {
+        println("helloA task(name)")
+    }
+}
+
+//方式二：使用 tasks 的 create 方法，示例：gradlew -q helloB
+tasks.create('helloB') {
+    doFirst {
+        println("helloB tasks.create(name)")
+    }
+}
+
+//方式三：使用 DSL 的特殊语法，示例：gradlew -q helloC
+task helloC {
+    doLast {
+        println("helloC task name")
+    }
+}
+
+
+// 执行 gradlew -q helloD 命令运行
+task(helloD) {
+    doLast {
+        println("helloD task(name)")
+    }
+}
+
+//在创建 Task 时，可以传入一个 Map 来简单配置任务，常用配置项有：
+
+// type	基于一个存在的 Task 来创建，类似于继承	DefaultTask
+// overwrite	是否替换已经存在的 Task，和 type 配合使用	false
+// dependsOn	用于配置任务依赖	[]
+// action	添加到任务中的一个 Action 或者一个闭包	null
+// description	用于配置任务的描述	null
+// group	用于配置任务的分组	null
+
+// 使用 Map 增加配置项
+task copy(type: Copy)
+
+// 覆盖了原 copy 任务
+//task copy(overwrite: true) {
+//    doLast {
+//        println('I am the new one.')
+//    }
+//}
+
+// 使用 gradlew tasks 命令查看 helloE 的配置
+task helloE {
+    description 'i am helloE'
+    group BasePlugin.BUILD_GROUP
+    doLast {
+        println('this is helloE')
+    }
+}
+
+//以上是创建一个 Task 的基本方法。但在 build.gradle 脚本中，我们可以利用 Groovy 语言的强大特性来动态创建多个任务。例如：gradlew -q task1
+// 同时创建4个任务：task0、task1、task2、task3
+4.times { counter ->
+    task "task$counter" {
+        doLast {
+            println "I'm task number $counter"
+        }
+    }
+}
+
+//当创建完 Task 之后，我们可以访问它们以进行配置或者依赖。那么怎么访问一个已经定义好的 Task 呢？主要有三种方法。
+//方式一：使用 Groovy 中 DSL 特殊语法访问。
+// 承接上文示例
+// 以helloE任务为例
+
+
+// 使用 gradlew tasks 命令查看 helloE 的配置
+task helloF {
+    description 'i am helloE'
+    group BasePlugin.BUILD_GROUP
+    doLast {
+        println '任务helloE的name: ' + helloE.name
+        println '任务helloE的description: ' + project.helloE.description
+    }
+}
+
+//方式二：使用 tasks 访问任务集。
+task helloG {
+    description 'i am helloE'
+    group BasePlugin.BUILD_GROUP
+    doLast {
+        // 利用tasks
+        println tasks.named('helloD').get().name
+        println tasks.copy.doLast {
+            println 'configure by tasks.copy.doLast'
+        }
+        println tasks['helloC'].name
+        println tasks.getByName('helloB').name
+
+    }
+}
+//方式三：通过路径访问任务
+task helloH {
+    doLast {
+        // 利用tasks
+        println tasks.getByPath('helloE').path // 找不到抛异常UnknownTaskException
+        println tasks.getByPath(':app:helloE').path
+        def ehelloE = tasks.findByPath("EhelloE") // 找不到返回null；
+        println ehelloE == null
+    }
+}
+
+//通过路径查找任务有两种方法，一种是 get，另一种是 find 。它们的区别在于 get 方法如果找不到指定任务就会抛出 UnknownTaskException 异常，而 find 方法则会返回 null 。
+//既然能够访问到 Task，那就可以对 Task 进行一些操作了，而这些操作又涉及到 Task 的属性和方法，这里简单介绍下。
+//Task 的属性范围有四个。你可以通过属性名或者 Task.property( java.lang.String ) 方法访问到指定属性。也可以通过 Task.setProperty( java.lang.String, java.lang.Object ) 方法修改属性值。四个范围如下：
+//
+//Task 对象本身属性。这包括 Task 实现类中声明的任何带有 getters 和 setters 方法的属性。根据相应的 getter 和 setter 方法的存在，此范围的属性是可读写的。
+//插件添加到任务的扩展。每个扩展名都可以作为只读属性使用，其名称与扩展名相同。
+//通过插件添加到任务的约定属性。插件通过 Convention 对象向任务添加属性和方法。此范围的属性可读写性取决于约定对象。
+//额外属性。每个任务对象都维护了一个附加属性的映射，是名称 -> 值对，可用于动态地向任务对象添加属性。此范围的属性是可读写的。
+//
+//actions 该任务将要执行的一系列动作
+// dependsOn 返回该任务依赖的任务
+// description 任务的描述
+// enabled 该任务是否开启
+// finalizedBy 返回完成此任务之后的任务
+// group 任务的分组
+// mustRunAfter 返回该任务必须在哪个任务之后运行的任务
+// name 任务的名字
+// path 任务的路径
+// project 任务所属的 Project
+
+//
+// 我们举个额外属性的例子：
+// 定义 Task 的额外属性
+task myTask {
+    ext.myProperty = "myValue"
+}
+// 访问该属性
+task printTaskProperties {
+    doLast {
+        println myTask.myProperty
+    }
+}
+
+//其他的属性会在下面的小节中详细介绍。
+//至于 Task 的方法，这里只简单列举出来：
+
+//dependsOn
+//给任务设置依赖任务
+
+//doFirst
+//给 Task 添加一个任务动作开始执行之前的动作
+
+//doLast
+//给 Task 添加一个任务动作执行结束之后的动作
+
+//finalizedBy
+//给任务添加终结任务，即该任务结束后执行的任务
+
+//hasProperty
+//判断该任务是否有指定属性
+
+//mustRunAfter
+//声明该任务必须在某些任务之后执行
+
+//onlyIf
+//给任务添加断言，只有满足条件才可以执行任务
+
+//property
+//返回指定属性的值
+
+//setProperty
+//修改指定属性的值
+//
+
+//DefaultTask
+//Gradle 其实还给我们提供一个 DefaultTask 基类，通过继承它可以用来自定义任务，多用在自定义 Gradle 插件中。这里简单写个示例，来说明 DefaultTask 的用法。
+
+class CustomTask extends DefaultTask {
+    final String message;
+    final int number;
+
+    def content // 配置参数
+
+    //添加构造函数
+    @Inject
+    CustomTask(String message,int number){
+        this.message = message
+        this.number = number
+    }
+
+    //添加要执行的动作
+    @TaskAction
+    def greet(){
+        println content
+        println "message is $message , number is $number !"
+    }
+}
+
+// 使用tasks创建
+// 需要传递两个参数，不能为null
+tasks.create('myCustomTask1',CustomTask,"hahaha",10)
+myCustomTask1.content = 'i love you'
+myCustomTask1.doFirst {
+    println 'my custom task do first'
+}
+myCustomTask1.doLast {
+    println 'my custom task do last'
+}
+
+
+// 使用task创建，构造参数使用constructorArgs传递，参数不能为null
+task myCustomTask2(type: CustomTask, constructorArgs: ['xixi', 120])
+myCustomTask2.content = 'i hate you'
+
+
+//可以看到，doFirst 会把动作添加到表头，而 doLast 则会把动作添加到表尾。
+// 通过 gradlew -q greetC 执行
+task greetC { // 可以显示声明 doFirst doLast
+    // 在配置阶段执行
+    println 'i am greet C, in configure'
+
+    // 在执行阶段执行
+    doFirst {
+        println 'i am greet C, in doFirst'
+    }
+
+    // 在执行阶段执行
+    doLast {
+        println 'i am greet C, in doLast'
+    }
+}
+//执行该任务后，你会发现 " i am greet C, in configure " 这句话没有在 doFirst 和 doLast 中间打印，而是打印在任务的配置阶段。说明直接在 Task 里写的动作并不会添加到 Task 的动作列表中，只会当做 Task 的配置信息执行。那有没有其他办法呢？
+//答案是肯定的，这就得利用到上小节中提到的 DefaultTask 类了。我们用 @TaskAction 注解标记的动作就会被添加到 Task 的动作列表中间。我们直接执行上节中的 myCustomTask1 任务 ( gradlew -q myCustomTask1 ) 。结果如下：
+//
+
+//这里需要提一个注意点，我们在创建任务的时候，如果只想给任务配置一个 doFirst 的动作，可以使用左移符号 << 来表示。
+// 操作符 << 在Gradle 4.x中被弃用（deprecated），并且在Gradle 5.0 被移除（removed）
+//task greetD << { // << 等价于 doFirst
+//    println 'i am greet B, in doFirst'
+//
+//    // 不能继续配置doLast
+////    doLast {
+////        println 'i am greet B, in doLast'
+////    }
+//}
+// 只能单独配置
+//greetD.doLast {
+//    println 'i am greet B, in doLast'
+//}

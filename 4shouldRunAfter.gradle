@@ -1,0 +1,140 @@
+task shouldTaskX {
+    doLast {
+        println 'taskX'
+    }
+}
+task shouldTaskY {
+    doLast {
+        println 'taskY'
+    }
+}
+task shouldTaskZ {
+    doLast {
+        println 'taskZ'
+    }
+}
+shouldTaskX.dependsOn shouldTaskY
+shouldTaskY.dependsOn shouldTaskZ
+shouldTaskZ.shouldRunAfter shouldTaskX // 这里其实是失效的
+//运行命令 gradlew -q shouldTaskX 会发现任务 Z 会先于任务 X 执行。
+
+
+//这里再提一个 tasks 的 whenTaskAdded 方法。如果在构建过程中有任务添加到 project ，则会触发此回调。我们可以监听这个回调来配置一些任务依赖或者修改某些变量，示例如下 ( gradlew HelloSecond )。
+// 定义任务greetE
+tasks.create('greetE') {
+    doLast {
+        println 'i am greetE'
+    }
+}
+// 构建过程中添加任务时会触发此回调，常用来配置一些任务依赖或者赋值
+// 经测试，该回调只针对插件中的任务有效
+project.tasks.whenTaskAdded { task ->
+    println "task ${task.name} add"
+    if (task.name == 'HelloSecond') { // 执行HelloSecond任务时，会先执行greetE
+        task.dependsOn 'greetE'
+    }
+}
+
+// 定义一个自定义插件
+class SecondPlugin implements Plugin<Project> {
+
+    @Override
+    void apply(Project project) {
+        println 'Hello Second Gradle Plugin'
+        // 添加一个task到project中
+        project.task('HelloSecond', {
+            println '===== SecondPlugin HelloSecond Task ====='
+            logger.quiet('hello')
+        })
+    }
+}
+
+apply plugin: SecondPlugin
+//该回调只针对插件（插件的相关知识会在后续文章中给大家介绍）中定义的任务，示例中为插件中的 HelloSecond 任务添加了一个 greetE 任务依赖。这样，执行 HelloSecond 时会先执行 greetE 。
+
+
+
+//跳过 Task
+//可能你有这样的需求：某些任务禁止执行或者满足某个条件才能执行。Gradle 提供了多种方式来跳过任务。
+//方式一：每个任务都有个 enabled 属性，可以启用和禁用任务，默认是 true，表示启用。如果设置为 false ，则会禁止该任务执行，输出会提示该任务被跳过，即被标记成 SKIPPED 。
+// 使用gradlew disableMe运行
+// 输出：Task :app:disableMe SKIPPED
+task disableMe {
+    doLast {
+        println 'This should not be printed if the task is disabled.'
+    }
+}
+disableMe.enabled = false // 禁止该任务执行
+//方式二：使用 onlyIf 判断方法。只有当 onlyIf 里返回 true 时该任务才可以执行。
+// 使用gradlew sayBye -PskipSayBye运行
+// 这里的-P是添加参数的意思
+task sayBye {
+    doLast {
+        println 'i am sayBye task'
+    }
+}
+// 只有当project中没有 skipSayBye 属性时，任务才可以执行
+sayBye.onlyIf { !project.hasProperty('skipSayBye') }
+
+
+//方式三：使用 StopExecutionException 。如果任务抛出这个异常，Gradle 会跳过该任务的执行，转而去执行下一个任务。
+// 使用gradlew nextTask运行
+task byeTask {
+    doLast {
+        println 'We are doing the byeTask.'
+    }
+}
+// 不会影响后续任务的执行
+byeTask.doFirst {
+    // Here you would put arbitrary conditions in real life.
+    // But this is used in an integration test so we want defined behavior.
+    if (true) { throw new StopExecutionException() }
+}
+task nextTask {
+    dependsOn('byeTask') // 先执行byeTask，而byeTask会异常中断
+    doLast { // 并不影响nextTask的执行
+        println 'I am not affected'
+    }
+}
+//方式四：利用 Task 的 timeout 属性来限制任务的执行时间。一旦任务超时，它的执行就会被中断，任务将被标记失败。Gradle 中内置任务都能及时响应超时。
+// 故意超时
+task hangingTask() {
+    doLast {
+        Thread.sleep(100000)
+    }
+    timeout = Duration.ofMillis(500)
+}
+//虽然有四种方法，但常用的还是方法一和方法二。
+
+
+
+//Task 规则
+//如果我们在要执行某个不存在的任务时，Gradle 会直接报异常提示找不到该任务。其实，我们可以通过添加规则的方式来做自定义处理。这需要利用到 TaskContainer 的 addRule 方法。
+// 第一个参数是该规则的描述
+// 第二个闭包参数是该规则要执行的动作
+tasks.addRule("Pattern: ping<ID>") { String taskName ->
+    if (taskName.startsWith("ping")) {
+        task(taskName) {
+            doLast {
+                println "Pinging: " + (taskName - 'ping')
+            }
+        }
+    }
+}
+//例子中添加了一个规则：如果运行的任务是以 ping 开头的，则会创建该任务（该任务运行前并不存在），并赋予 doLast 操作。可以使用 gradlew pingServer1 执行。
+//我们不仅可以通过命令行来使用规则，也可以在基于规则的任务上创建 dependsOn 关系。
+// gradlew groupPing
+task groupPing {
+    dependsOn pingServer1, pingServer2
+}
+//生命周期任务
+//生命周期任务是不能自行完成的任务，它们通常没有任何执行动作。这些任务主要体现在：
+//
+//工作流程任务，如： check ；
+//一个可构建的东西，如： debug32MainExecutable ；
+//用于执行多个有相同逻辑任务的便利任务，如： compileAll ；
+//
+//除非生命周期任务具有操作，否则其结果由其依赖性决定。 如果执行任何任务的依赖项，则将认为生命周期任务已执行。 如果所有任务的依赖项都是最新的，跳过的或来自缓存，则生命周期任务将被视为最新的。
+//总结
+//读完本文内容，相信你已经学会了如何创建和使用 Task 。Task 作为 Gradle 的主要执行骨架是非常重要的，我们可以通过 Task 的各种属性、方法来灵活地配置和调整任务的依赖、执行顺序以及运行规则。大家不妨多写一些示例，有助于理解 Gradle 的工作机制，也为后续的自定义插件奠定基础。
+//

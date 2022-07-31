@@ -1,0 +1,41 @@
+plugins {
+    id 'maven-publish'
+    id 'groovy'
+}
+dependencies {
+    implementation gradleApi()
+    implementation localGroovy()
+}
+
+
+
+
+// 将该插件上传到本地Maven库
+group='com.shixin.plugin'
+version='1.0.0'
+
+// 通过gradlew :customPlugin:uploadArchives命令上传
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = 'com.shixin'
+            artifactId = 'customPlugin'
+            version = '1.0.0'
+            from components.java
+        }
+    }
+
+    repositories {
+        maven {
+            // change to point to your repo, e.g. http://my.org/repo
+            url = layout.projectDirectory.dir('../repos')
+        }
+    }
+}
+
+
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}

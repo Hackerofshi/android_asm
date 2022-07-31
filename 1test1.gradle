@@ -1,0 +1,30 @@
+//Task 依赖和顺序
+//我们知道，一个 Project 拥有多个 Task，这些 Task 之间的关系由 DAG 图维护。而 DAG 图是在构建的配置过程中生成的，我们可以通过 gradle.taskGraph 来监听这个过程
+
+def versionD = '0.0'
+task greetD {
+    doLast {
+        println "i am greet D, versionD is $versionD"
+    }
+}
+// task的DAG图是在配置阶段生成的
+// 任务准备好了
+gradle.taskGraph.whenReady {taskGraph ->
+    if (taskGraph.hasTask('greetC')) {
+        versionD = '1.0'
+    } else {
+        versionD = '1.0-alpha'
+    }
+}
+// 任务执行前
+gradle.taskGraph.beforeTask { Task task ->
+    println "executing $task ..."
+}
+// 任务执行后
+gradle.taskGraph.afterTask { Task task, TaskState state ->
+    if (state.failure) {
+        println "FAILED"
+    } else {
+        println "$task done"
+    }
+}

@@ -1,0 +1,64 @@
+task taskX { // 定义任务X
+    doLast {
+        println 'i am task X'
+    }
+}
+
+task taskY { // 定义任务Y
+    doLast {
+        println 'i am task Y'
+    }
+}
+
+task taskZ { // 定义任务Z
+    doLast {
+        println 'i am task Z'
+    }
+}
+// 任务X执行后，立刻执行任务Y和任务Z
+taskX.finalizedBy taskY, taskZ
+
+task taskM { // 定义任务M
+    doLast {
+        println 'i am task M'
+    }
+}
+
+task taskN {
+    finalizedBy taskM // 将任务M设置成任务N的终结任务
+    doLast {
+        println 'i am task N'
+    }
+}
+
+//对任务进行 finalizedBy 配置和 dependsOn 很类似，其作用和 dependsOn 恰好相反。
+// 在某任务执行完后，会执行其设置的终结任务。
+
+
+// mustRunAfter ：如果 taskB.mustRunAfter(taskA) 则表示 taskB 必须在 taskA 执行之后再执行，这个规则比较严格。
+task taskA {
+    doLast {
+        println 'i am task A'
+    }
+}
+
+task taskB {
+    doLast {
+        println 'i am task B'
+    }
+}
+// 任务A必须在任务B之后执行
+taskA.mustRunAfter taskB
+
+//运行命令 gradlew taskA taskB ，你会发现 taskB 会先执行。
+
+// shouldRunAfter ：如果 taskB.shouldRunAfter(taskA) 则表示 taskB 应该在 taskA 之后执行，但这不是必须的，任务可能不会按预设的顺序执行。
+task shouldTaskC << {
+    println 'i am task C'
+}
+
+task shouldTaskD << {
+    println 'i am task D'
+}
+
+shouldTaskC.shouldRunAfter shouldTaskD
